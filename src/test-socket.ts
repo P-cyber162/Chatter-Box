@@ -20,6 +20,7 @@ socket.on('connect', () => {
     // Send a message
     socket.emit('send-message', {
         roomId: 'room-123',
+        userId: 'user-456',
         text: 'Hello via WebSocket!',
         username: 'john'
     });
@@ -40,5 +41,10 @@ socket.on('connect', () => {
     // Receive reactions
     socket.on('receive-reaction', (data) => {
         console.log('Reaction:', data);
+    });
+
+    // Listen for errors
+    socket.on('error', (data) => {
+        console.error('Socket error:', data);
     });
 });

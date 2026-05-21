@@ -1,17 +1,12 @@
 import type { Request, Response } from "express";
 import { prisma } from "../config/prisma.js";
-import type { AuthenticatedRequest } from "../middleware/auth.middleware.js";
 import { AppError } from "../utils/AppError.js";
 
-export const createRoom = async(req: AuthenticatedRequest, res: Response) => {
-    const user = req.user;
-    const name = req.body;
-    if(!user) {
-        throw new AppError('User not authenticated!', 401, 'UNAUTHORIZED');
-    };
+export const createRoom = async(req: Request, res: Response) => {
+    const { name } = req.body;
 
     if(!name) {
-        throw new AppError('Please provide a name for the room!', 401, 'NAME_NOT_FOUND');
+        throw new AppError('Please provide a name for the room!', 400, 'NAME_NOT_FOUND');
     };
 
     const room = await prisma.room.create({
@@ -26,15 +21,15 @@ export const createRoom = async(req: AuthenticatedRequest, res: Response) => {
     });
 };
 
-export const joinRoom = async(req: AuthenticatedRequest, res: Response) => {
-    const userId = req.user?.id;
-    const roomName = req.body;
+export const joinRoom = async(req: Request, res: Response) => {
+    const { userId, roomName } = req.body;
+
     if(!userId) {
-        throw new AppError('User not authenticated!', 401, 'UNAUTHORIZED');
+        throw new AppError('Please provide a user ID!', 400, 'USER_ID_REQUIRED');
     };
 
     if(!roomName) {
-        throw new AppError('Please provide the room name!', 401, 'BAD_REQUEST');
+        throw new AppError('Please provide the room name!', 400, 'ROOM_NAME_REQUIRED');
     };
 
     const room = await prisma.room.findUnique({
@@ -63,15 +58,15 @@ export const joinRoom = async(req: AuthenticatedRequest, res: Response) => {
     });
 };
 
-export const leaveRoom = async(req: AuthenticatedRequest, res: Response) => {
-    const userId = req.user?.id;
-    const roomName = req.body;
+export const leaveRoom = async(req: Request, res: Response) => {
+    const { userId, roomName } = req.body;
+
     if(!userId) {
-        throw new AppError('User not authenticated!', 401, 'UNAUTHORIZED');
+        throw new AppError('Please provide a user ID!', 400, 'USER_ID_REQUIRED');
     };
 
     if(!roomName) {
-        throw new AppError('Please provide the room name!', 401, 'BAD_REQUEST');
+        throw new AppError('Please provide the room name!', 400, 'ROOM_NAME_REQUIRED');
     };
 
     const room = await prisma.room.findUnique({
