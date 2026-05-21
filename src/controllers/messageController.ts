@@ -1,13 +1,12 @@
 import type { Request, Response } from "express";
 import { prisma } from "../config/prisma.js";
-import type { AuthenticatedRequest } from "../middleware/auth.middleware.js";
 import { AppError } from "../utils/AppError.js";
 
-export const sendMessage = async(req: AuthenticatedRequest, res: Response) => {
-    const userId = req.user?.id;
-    const { text } = req.body;
+export const sendMessage = async(req: Request, res: Response) => {
+    const { userId, text } = req.body;
+
     if(!userId) {
-        throw new AppError('User not authenticated!', 401, 'UNAUTHORIZED');
+        throw new AppError('Please provide a user ID', 400, 'USER_ID_REQUIRED');
     };
 
     if(!text) {
@@ -24,16 +23,15 @@ export const sendMessage = async(req: AuthenticatedRequest, res: Response) => {
     return res.status(201).json({
         status: 'success',
         message: msg,
-        
     });
 };
 
-export const updateMessage = async(req: AuthenticatedRequest, res: Response) => {
-    const userId = req.user?.id;
+export const updateMessage = async(req: Request, res: Response) => {
+    const { userId, text } = req.body;
     const { messageId } = req.params as { messageId: string };
-    const { text } = req.body;
+
     if(!userId) {
-        throw new AppError('User not authenticated!', 401, 'UNAUTHORIZED');
+        throw new AppError('Please provide a user ID', 400, 'USER_ID_REQUIRED');
     };
 
     if(!text) {
@@ -67,16 +65,11 @@ export const updateMessage = async(req: AuthenticatedRequest, res: Response) => 
     });
 };
 
-export const sendReaction = async(req: AuthenticatedRequest, res: Response) => {
-    const userId = req.user?.id;
-    const { messageId } = req.params as { messageId: string };
+export const sendReaction = async(req: Request, res: Response) => {
     const { emoji } = req.body;
+    const { messageId } = req.params as { messageId: string };
 
     const validEmojis = ['HAPPY', 'FUNNY', 'PARTY', 'LIKE', 'HEAT'];
-
-    if(!userId) {
-        throw new AppError('User not authenticated!', 401, 'UNAUTHORIZED');
-    };
 
     if(!emoji || !validEmojis.includes(emoji)) {
         throw new AppError('Please provide a valid reaction', 400, 'BAD_REQUEST');
@@ -103,7 +96,7 @@ export const sendReaction = async(req: AuthenticatedRequest, res: Response) => {
     });
 };
 
-export const getMessages = async(req: AuthenticatedRequest, res: Response) => {
+export const getMessages = async(req: Request, res: Response) => {
     const { roomId } = req.params as { roomId: string };
 
     if(!roomId) {

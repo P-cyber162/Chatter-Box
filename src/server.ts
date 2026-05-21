@@ -12,8 +12,26 @@ const server = app.listen(port, () => {
 
 const io = new Server(server, {
     cors: {
-        origin: "*"
-    }
+        origin: "*",
+        methods: ["GET", "POST"]
+    },
+    transports: ["websocket", "polling"]
 });
 
-setupSocketHandlers(io);
+console.log('Setting up socket handlers...');
+
+// Debug listeners
+io.on('connection', (socket) => {
+    console.log('DEBUG: Socket connected:', socket.id);
+});
+
+io.on('connect_error', (error) => {
+    console.error('Socket.IO connect error:', error);
+});
+
+try {
+    setupSocketHandlers(io);
+    console.log('Socket handlers set up successfully');
+} catch (error) {
+    console.error('Error setting up socket handlers:', error);
+}

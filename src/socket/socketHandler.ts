@@ -1,4 +1,6 @@
 import { Server, Socket } from 'socket.io';
+import type { Request, Response } from 'express';
+import { sendMessage, sendReaction } from '../controllers/messageController.js';
 import { prisma } from '../config/prisma.js';
 
 interface RoomUser {
@@ -12,6 +14,28 @@ interface RoomState {
 }
 
 const roomState: RoomState = {};
+
+// Helper to create mock Request/Response for controller functions
+const createMockRequest = (body: any = {}, params: any = {}) => {
+    return {
+        body,
+        params
+    } as any as Request;
+};
+
+const createMockResponse = () => {
+    let responseData: any = null;
+
+    return {
+        status: (code: number) => ({
+            json: (data: any) => {
+                responseData = data;
+                return data;
+            }
+        }),
+        getResponse: () => responseData
+    } as any as Response & { getResponse: () => any };
+};
 
 export const setupSocketHandlers = (io: Server) => {
     io.on('connection', (socket: Socket) => {
@@ -44,31 +68,76 @@ export const setupSocketHandlers = (io: Server) => {
             });
         });
 
-        // Send message to room
-        socket.on('send-message', (data: { roomId: string; text: string; username: string }) => {
-            const { roomId, text, username } = data;
+        // Send message to room - CALLS CONTROLLER FUNCTION
+        socket.on('send-message', async (data: { roomId: string; userId: string; text: string; username: string }) => {
+            try {
+                const { roomId, userId, text, username } = data;
 
-            io.to(roomId).emit('receive-message', {
-                text,
-                username,
-                timestamp: new Date()
-            });
+                // Create mock request/response for controller
+                const mockReq = createMockRequest({ userId, text });
+                const mockRes = createMockResponse();
 
-            console.log(`Message in room ${roomId}: ${text}`);
+                // Call the controller function
+                await sendMessage(mockReq, mockRes);
+
+                const response = (mockRes as any).getResponse();
+
+                if (response?.status === 'success') {
+                    const message = response.message;
+                    
+                    // Broadcast saved message to all clients in room
+                    io.to(roomId).emit('receive-message', {
+                        id: message.id,
+                        text: message.text,
+                        username: username,
+                        userId: userId,
+                        timestamp: message.sentAt
+                    });
+
+                    console.log(`Message saved in room ${roomId}: ${text}`);
+                } else {
+                    socket.emit('error', { message: 'Failed to send message' });
+                }
+            } catch (error: any) {
+                console.error('Error sending message:', error);
+                socket.emit('error', { message: error.message || 'Failed to send message' });
+            }
         });
 
-        // Send reaction to room
-        socket.on('send-reaction', (data: { roomId: string; messageId: string; emoji: string; username: string }) => {
-            const { roomId, messageId, emoji, username } = data;
+        // Send reaction to room - CALLS CONTROLLER FUNCTION
+        socket.on('send-reaction', async (data: { roomId: string; messageId: string; emoji: string; username: string }) => {
+            try {
+                const { roomId, messageId, emoji, username } = data;
 
-            io.to(roomId).emit('receive-reaction', {
-                messageId,
-                emoji,
-                username,
-                timestamp: new Date()
-            });
+                // Create mock request/response for controller
+                const mockReq = createMockRequest({ emoji }, { messageId });
+                const mockRes = createMockResponse();
 
-            console.log(`Reaction in room ${roomId}: ${emoji} from ${username}`);
+                // Call the controller function
+                await sendReaction(mockReq, mockRes);
+
+                const response = (mockRes as any).getResponse();
+
+                if (response?.status === 'success') {
+                    const reaction = response.reaction;
+                    
+                    // Broadcast reaction to all clients in room
+                    io.to(roomId).emit('receive-reaction', {
+                        id: reaction.id,
+                        messageId: messageId,
+                        emoji: emoji,
+                        username: username,
+                        timestamp: new Date()
+                    });
+
+                    console.log(`Reaction saved in room ${roomId}: ${emoji} from ${username}`);
+                } else {
+                    socket.emit('error', { message: 'Failed to send reaction' });
+                }
+            } catch (error: any) {
+                console.error('Error sending reaction:', error);
+                socket.emit('error', { message: error.message || 'Failed to send reaction' });
+            }
         });
 
         // User leaves room
@@ -79,7 +148,7 @@ export const setupSocketHandlers = (io: Server) => {
                 roomState[roomId] = roomState[roomId].filter(
                     user => user.socketId !== socket.id
                 );
-            }
+            };
 
             socket.leave(roomId);
 
