@@ -25,18 +25,21 @@ model User {
   roomId String?
   message Message[]
   isActive Boolean @default(false)
-  isExited Boolean @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
 
   room Room? @relation(fields: [roomId], references: [id])
+  @@unique([username])
 }
 
 model Room {
   id String @id @default(uuid())
+  name String
   Users User[]
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
+
+  @@unique([name])
 }
 
 model Message {
