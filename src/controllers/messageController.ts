@@ -5,19 +5,19 @@ import { AppError } from "../utils/AppError.js";
 
 export const sendMessage = async(req: AuthenticatedRequest, res: Response) => {
     const userId = req.user?.id;
-    const message = req.body;
+    const { text } = req.body;
     if(!userId) {
         throw new AppError('User not authenticated!', 401, 'UNAUTHORIZED');
     };
 
-    if(!message) {
+    if(!text) {
         throw new AppError('Please provide a message', 400, 'BAD_REQUEST');
     };
 
     const msg = await prisma.message.create({
         data: {
             userId: userId,
-            text: message,
+            text: text,
         },
     });
 
@@ -31,7 +31,7 @@ export const sendMessage = async(req: AuthenticatedRequest, res: Response) => {
 export const updateMessage = async(req: AuthenticatedRequest, res: Response) => {
     const userId = req.user?.id;
     const { messageId } = req.params as { messageId: string };
-    const text = req.body;
+    const { text } = req.body;
     if(!userId) {
         throw new AppError('User not authenticated!', 401, 'UNAUTHORIZED');
     };
@@ -70,28 +70,68 @@ export const updateMessage = async(req: AuthenticatedRequest, res: Response) => 
 export const sendReaction = async(req: AuthenticatedRequest, res: Response) => {
     const userId = req.user?.id;
     const { messageId } = req.params as { messageId: string };
-    const emoji = req.body;
+    const { emoji } = req.body;
+
+    const validEmojis = ['HAPPY', 'FUNNY', 'PARTY', 'LIKE', 'HEAT'];
+
     if(!userId) {
         throw new AppError('User not authenticated!', 401, 'UNAUTHORIZED');
     };
 
-    if(!emoji || emoji !== 'HAPPY' || emoji !== 'FUNNY' || emoji !== 'PARTY' || emoji !== 'PARTY' ||emoji !== 'LIKE' || emoji !== 'HEAT') {
-        throw new AppError('Please provide a reaction', 400, 'BAD_REQUEST');
+    if(!emoji || !validEmojis.includes(emoji)) {
+        throw new AppError('Please provide a valid reaction', 400, 'BAD_REQUEST');
     };
 
-    const msg = await prisma.reaction.create({
+    const message = await prisma.message.findUnique({
+        where: { id: messageId }
+    });
+
+    if(!message) {
+        throw new AppError('Please provide valid message Id', 400, 'BAD_REQUEST');
+    };
+
+    const reaction = await prisma.reaction.create({
         data: {
             messageId: messageId,
             emoji: emoji,
         },
     });
 
-    if(!msg) {
-        throw new AppError('Please provide valid message Id ', 400, 'BAD_REQUEST');
-    };
-
     return res.status(201).json({
         status: 'success',
-        message: msg,  
+        reaction: reaction,  
+    });
+};
+
+export const getMessages = async(req: AuthenticatedRequest, res: Response) => {
+    const { roomId } = req.params as { roomId: string };
+
+    if(!roomId) {
+        throw new AppError('Please provide a room id', 400, 'BAD_REQUEST');
+    };
+
+    const messages = await prisma.message.findMany({
+        where: {
+            user: {
+                roomId: roomId
+            }
+        },
+        include: {
+            reaction: true,
+            user: {
+                select: {
+                    username: true,
+                    id: true
+                }
+            }
+        },
+        orderBy: {
+            sentAt: 'asc'
+        }
+    });
+
+    return res.status(200).json({
+        status: 'success',
+        messages: messages,
     });
 };

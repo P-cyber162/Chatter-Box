@@ -1,12 +1,13 @@
 import { Router } from 'express';
-import { sendMessage, updateMessage, sendReaction } from '../controllers/messageController.js';
+import { sendMessage, updateMessage, sendReaction, getMessages } from '../controllers/messageController.js';
 import { authenticateToken } from '../middleware/auth.middleware.js';
+import { catchAsync } from '../utils/catchAsync.js';
 
 const router = Router();
 
-router.get('/send-message', authenticateToken , sendMessage);
-router.get('/update-message/:messageId', authenticateToken , updateMessage);
-router.get('/send-reaction/:messageId', authenticateToken , sendReaction);
-
+router.post('/send-message', authenticateToken, catchAsync(sendMessage));
+router.put('/update-message/:messageId', authenticateToken, catchAsync(updateMessage));
+router.post('/send-reaction/:messageId', authenticateToken, catchAsync(sendReaction));
+router.get('/history/:roomId', authenticateToken, catchAsync(getMessages));
 
 export default router;
