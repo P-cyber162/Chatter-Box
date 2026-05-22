@@ -7,11 +7,11 @@ interface RoomUser {
     userId: string;
     username: string;
     socketId: string;
-}
+};
 
 interface RoomState {
     [roomId: string]: RoomUser[];
-}
+};
 
 const roomState: RoomState = {};
 
