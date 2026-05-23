@@ -1,9 +1,9 @@
 import dotenv from "dotenv";
-import { Server } from 'socket.io';
-import { app } from './app.js';
-import { setupSocketHandlers } from './socket/socketHandler.js';
-
 dotenv.config();
+
+import { Server } from 'socket.io';
+import { setupSocketHandlers } from './socket/socketHandler.js';
+import { app } from './app.js';
 
 const port = process.env.PORT;
 const server = app.listen(port, () => {
