@@ -10,19 +10,10 @@ const server = app.listen(port, () => {
     console.log(`WebSocket server running on port ${port} 🔥🔥`);
 });
 
-const io = new Server(server, {
-    cors: {
-        origin: "*",
-        methods: ["GET", "POST"]
-    },
-    transports: ["websocket", "polling"]
-});
+const io = new Server(server);
 
-console.log('Setting up socket handlers...');
-
-// Debug listeners
 io.on('connection', (socket) => {
-    console.log('DEBUG: Socket connected:', socket.id);
+    console.log('Socket connected:', socket.id);
 });
 
 io.on('connect_error', (error) => {

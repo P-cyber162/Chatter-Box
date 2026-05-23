@@ -1,41 +1,8 @@
 import { Server, Socket } from 'socket.io';
-import type { Request, Response } from 'express';
-import { sendMessage, sendReaction } from '../controllers/messageController.js';
 import { prisma } from '../config/prisma.js';
 
-interface RoomUser {
-    userId: string;
-    username: string;
-    socketId: string;
-};
-
-interface RoomState {
-    [roomId: string]: RoomUser[];
-};
-
-const roomState: RoomState = {};
-
-// Helper to create mock Request/Response for controller functions
-const createMockRequest = (body: any = {}, params: any = {}) => {
-    return {
-        body,
-        params
-    } as any as Request;
-};
-
-const createMockResponse = () => {
-    let responseData: any = null;
-
-    return {
-        status: (code: number) => ({
-            json: (data: any) => {
-                responseData = data;
-                return data;
-            }
-        }),
-        getResponse: () => responseData
-    } as any as Response & { getResponse: () => any };
-};
+const socketUsers = new Map<string, { username: string, roomId: string, roomName: string }>();
+const roomUsers = new Map<string, Set<string>>();
 
 export const setupSocketHandlers = (io: Server) => {
     io.on('connection', (socket: Socket) => {
@@ -43,153 +10,182 @@ export const setupSocketHandlers = (io: Server) => {
 
         socket.emit('welcome', 'Welcome to Chatter-Box!');
 
-        // User joins a room
-        socket.on('join-room', async (data: { roomId: string; userId: string; username: string }) => {
-            const { roomId, userId, username } = data;
+        // User creates a room
+        socket.on('create-room', async(data: { name: string }) => {
+            const { name } = data;
 
-            socket.join(roomId);
+            if(!name) {
+                return socket.emit('room-error', {
+                    satus: 'fail',
+                    message: "Please provide a room name!",
+                });
+            };
 
-            if (!roomState[roomId]) {
-                roomState[roomId] = [];
-            }
-
-            roomState[roomId].push({
-                userId,
-                username,
-                socketId: socket.id
+            const room = await prisma.room.create({
+                data: {
+                    name: name,
+                }
             });
 
-            console.log(`${username} joined room ${roomId}`);
-
-            io.to(roomId).emit('user-joined', {
-                username,
-                activeUsers: roomState[roomId].length,
-                message: `${username} joined the room`
+            socket.emit('room-created', {
+                message: "Room created succesfully",
+                ...room
             });
         });
 
-        // Send message to room - CALLS CONTROLLER FUNCTION
-        socket.on('send-message', async (data: { roomId: string; userId: string; text: string; username: string }) => {
-            try {
-                const { roomId, userId, text, username } = data;
+        // User joins a room
+        socket.on('join-room', async(data: { roomName: string; username: string }) => {
+            const { roomName, username } = data;
 
-                // Create mock request/response for controller
-                const mockReq = createMockRequest({ userId, text });
-                const mockRes = createMockResponse();
-
-                // Call the controller function
-                await sendMessage(mockReq, mockRes);
-
-                const response = (mockRes as any).getResponse();
-
-                if (response?.status === 'success') {
-                    const message = response.message;
-                    
-                    // Broadcast saved message to all clients in room
-                    io.to(roomId).emit('receive-message', {
-                        id: message.id,
-                        text: message.text,
-                        username: username,
-                        userId: userId,
-                        timestamp: message.sentAt
-                    });
-
-                    console.log(`Message saved in room ${roomId}: ${text}`);
-                } else {
-                    socket.emit('error', { message: 'Failed to send message' });
+            if(!roomName || !username) {
+                return socket.emit('join-error', {
+                    satus: 'fail',
+                    message: "Please provide a room name and username!",
+                });
+            };
+            socket.join(roomName);
+            
+            const userRoom = await prisma.room.findUnique({
+                where: {
+                    name: roomName
+                },
+                select: {
+                    id: true,
+                    name: true,
                 }
-            } catch (error: any) {
-                console.error('Error sending message:', error);
-                socket.emit('error', { message: error.message || 'Failed to send message' });
+            });
+
+            if(!userRoom) {
+                return socket.emit('room-error', {
+                    satus: 'fail',
+                    message: "Room does not exst!",
+                });
             }
+            socketUsers.set(socket.id, { username, roomId: userRoom.id, roomName: userRoom.name })
+            if(!roomUsers.has(roomName)) {
+                roomUsers.set(roomName, new Set());
+            };
+            roomUsers.get(roomName)!.add(username);
+
+            console.log(`${username} joined room ${roomName}`);
+
+            io.to(roomName).emit('user-joined', {
+                username,
+                activeUsers: `${roomUsers.get(roomName)!.size} active users!`,
+                message: `${username} joined the room!`
+            });
+        });
+
+        // Send message to room
+        socket.on('send-message', async (data: { roomId: string; username: string; text: string }) => {
+                const { roomId, username , text } = data;
+
+                if(!roomId || !text) {
+                    return socket.emit('message-error', {
+                        satus: 'fail',
+                        message: "Please provide a room Id and message!",
+                    });
+                };
+
+                const message = await prisma.message.create({
+                    data: {
+                        roomId: roomId,
+                        text: text,
+                    },
+                    select: {
+                        room: true,
+                    }
+                });
+
+                io.to(message.room.name).emit('receive-message', {
+                    status: username,
+                    message: text,
+                    timeStamp: new Date()
+                });
         });
 
         // Send reaction to room - CALLS CONTROLLER FUNCTION
-        socket.on('send-reaction', async (data: { roomId: string; messageId: string; emoji: string; username: string }) => {
-            try {
-                const { roomId, messageId, emoji, username } = data;
+        socket.on('send-reaction', (data: { roomName: string; emoji: string; username: string }) => {
+                const { roomName, emoji, username } = data;
 
-                // Create mock request/response for controller
-                const mockReq = createMockRequest({ emoji }, { messageId });
-                const mockRes = createMockResponse();
-
-                // Call the controller function
-                await sendReaction(mockReq, mockRes);
-
-                const response = (mockRes as any).getResponse();
-
-                if (response?.status === 'success') {
-                    const reaction = response.reaction;
-                    
-                    // Broadcast reaction to all clients in room
-                    io.to(roomId).emit('receive-reaction', {
-                        id: reaction.id,
-                        messageId: messageId,
-                        emoji: emoji,
-                        username: username,
-                        timestamp: new Date()
+                if(!roomName || !emoji || !username) {
+                    return socket.emit('reaction-error', {
+                        satus: 'fail',
+                        message: "Please provide a room name, reaction and username!",
                     });
-
-                    console.log(`Reaction saved in room ${roomId}: ${emoji} from ${username}`);
-                } else {
-                    socket.emit('error', { message: 'Failed to send reaction' });
-                }
-            } catch (error: any) {
-                console.error('Error sending reaction:', error);
-                socket.emit('error', { message: error.message || 'Failed to send reaction' });
-            }
+                };
+                
+                // Broadcast reaction to all clients in room
+                io.to(roomName).emit('receive-reaction', {
+                    username: username,
+                    emoji: emoji,
+                    timestamp: new Date(),
+                });
         });
 
         // User leaves room
-        socket.on('leave-room', (data: { roomId: string; username: string }) => {
-            const { roomId, username } = data;
+        socket.on('leave-room', async(data: { roomName: string; username: string }) => {
+            const { roomName, username } = data;
 
-            if (roomState[roomId]) {
-                roomState[roomId] = roomState[roomId].filter(
-                    user => user.socketId !== socket.id
-                );
+            if(!roomName || !username) {
+                return socket.emit('reaction-error', {
+                    satus: 'fail',
+                    message: "Please provide a room name and username!",
+                });
             };
 
-            socket.leave(roomId);
+            if(roomUsers.has(roomName)) {
+                roomUsers.get(roomName)!.delete(username);
+            };
 
-            const activeUsersCount = roomState[roomId]?.length || 0;
+            socket.leave(roomName);
+            socketUsers.delete(socket.id);
 
-            io.to(roomId).emit('user-left', {
+            const activeUsersCount =roomUsers.get(roomName)!.size;
+
+            if(activeUsersCount === 0) {
+                roomUsers.delete(roomName)
+                await prisma.room.delete({
+                    where: {
+                        name: roomName,
+                    }
+                });
+            };
+
+            io.to(roomName).emit('user-left', {
                 username,
                 activeUsers: activeUsersCount,
                 message: `${username} left the room`
             });
-
-            console.log(`${username} left room ${roomId}`);
         });
 
         // Disconnect
-        socket.on('disconnect', () => {
-            for (const roomId in roomState) {
-                const users = roomState[roomId];
-                if (!users) continue;
+        socket.on('disconnect', async() => {
+                const user = socketUsers.get(socket.id);
+                if (!user) return;
 
-                const userIndex = users.findIndex(
-                    user => user.socketId === socket.id
-                );
+                const { username , roomId, roomName } = user;
+                const room = roomUsers.get(roomId);
 
-                if (userIndex !== -1) {
-                    const username = users[userIndex]?.username;
-                    users.splice(userIndex, 1);
+                if(room) {
+                    roomUsers.delete(username);
+                };
 
-                    io.to(roomId).emit('user-left', {
-                        username,
-                        activeUsers: users.length,
-                        message: `${username} left the room`
+                const activeUsersCount =roomUsers.get(roomName)!.size;
+                if(activeUsersCount === 0) {
+                    roomUsers.delete(roomName)
+                    await prisma.room.delete({
+                        where: {
+                            name: roomName,
+                        }
                     });
-                }
-            }
+                };
 
-            console.log('User disconnected:', socket.id);
+                io.to(roomName).emit('user-left', {
+                    username,
+                    activeUsers: activeUsersCount,
+                    message: `${username} left the room`
+                });
         });
     });
-};
-
-export const getRoomUsers = (roomId: string): RoomUser[] => {
-    return roomState[roomId] || [];
 };
