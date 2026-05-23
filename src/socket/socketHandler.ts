@@ -3,7 +3,6 @@ import { prisma } from '../config/prisma.js';
 
 const socketUsers = new Map<string, { username: string, roomId: string, roomName: string }>();
 const roomUsers = new Map<string, Set<string>>();
-
 export const setupSocketHandlers = (io: Server) => {
     io.on('connection', (socket: Socket) => {
         console.log('User connected:', socket.id);
