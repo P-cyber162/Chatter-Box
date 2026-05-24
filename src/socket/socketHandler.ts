@@ -75,6 +75,36 @@ export const setupSocketHandlers = (io: Server) => {
             });
         });
 
+        // Get message history for a room
+        socket.on('get-message-history', async(data: { roomId: string }) => {
+            const { roomId } = data;
+
+            if(!roomId) {
+                return socket.emit('message-error', {
+                    status: 'fail',
+                    message: "Please provide a room ID!",
+                });
+            };
+
+            const messages = await prisma.message.findMany({
+                where: {
+                    roomId: roomId
+                },
+                select: {
+                    id: true,
+                    text: true,
+                    sentAt: true,
+                    editedAt: true,
+                },
+                orderBy: {
+                    sentAt: 'asc'
+                }
+            });
+
+            socket.emit('message-history', {
+                messages: messages
+            });
+    });
         // Send message to room
         socket.on('send-message', async (data: { roomId: string; username: string; text: string }) => {
                 const { roomId, username , text } = data;
