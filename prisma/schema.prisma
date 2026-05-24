@@ -28,5 +28,5 @@ model Message {
   sentAt DateTime @default(now())
   editedAt DateTime @default(now())
 
-  room Room @relation(fields: [roomId], references: [id])
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
 }
