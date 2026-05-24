@@ -104,7 +104,8 @@ export const setupSocketHandlers = (io: Server) => {
             socket.emit('message-history', {
                 messages: messages
             });
-    });
+        });
+
         // Send message to room
         socket.on('send-message', async (data: { roomId: string; username: string; text: string }) => {
                 const { roomId, username , text } = data;

@@ -1,0 +1,211 @@
+{
+  "info": {
+    "name": "Chatter-Box Socket.IO API",
+    "description": "Socket.IO events for Chatter-Box real-time messaging application",
+    "version": "1.0.0"
+  },
+  "events": [
+    {
+      "name": "create-room",
+      "description": "Create a new chat room",
+      "emit": true,
+      "payload": {
+        "name": "room-name"
+      },
+      "response": {
+        "event": "room-created",
+        "data": {
+          "message": "Room created succesfully",
+          "id": "uuid",
+          "name": "room-name",
+          "createdAt": "2024-05-24T10:30:00Z",
+          "updatedAt": "2024-05-24T10:30:00Z"
+        }
+      },
+      "error": {
+        "event": "room-error",
+        "data": {
+          "satus": "fail",
+          "message": "Please provide a room name!"
+        }
+      }
+    },
+    {
+      "name": "join-room",
+      "description": "Join an existing room",
+      "emit": true,
+      "payload": {
+        "roomName": "room-name",
+        "username": "john-doe"
+      },
+      "response": {
+        "event": "user-joined",
+        "broadcast": true,
+        "data": {
+          "username": "john-doe",
+          "activeUsers": "2 active users!",
+          "message": "john-doe joined the room!"
+        }
+      },
+      "error": {
+        "event": "join-error",
+        "data": {
+          "satus": "fail",
+          "message": "Please provide a room name and username!"
+        }
+      }
+    },
+    {
+      "name": "get-message-history",
+      "description": "Fetch message history for a room",
+      "emit": true,
+      "payload": {
+        "roomId": "uuid"
+      },
+      "response": {
+        "event": "message-history",
+        "data": {
+          "messages": [
+            {
+              "id": "uuid",
+              "text": "Hello everyone!",
+              "sentAt": "2024-05-24T10:30:00Z",
+              "editedAt": "2024-05-24T10:30:00Z"
+            },
+            {
+              "id": "uuid",
+              "text": "Hi there!",
+              "sentAt": "2024-05-24T10:31:00Z",
+              "editedAt": "2024-05-24T10:31:00Z"
+            }
+          ]
+        }
+      },
+      "error": {
+        "event": "message-error",
+        "data": {
+          "status": "fail",
+          "message": "Please provide a room ID!"
+        }
+      }
+    },
+    {
+      "name": "send-message",
+      "description": "Send a message to a room",
+      "emit": true,
+      "payload": {
+        "roomId": "uuid",
+        "username": "john-doe",
+        "text": "Hello everyone!"
+      },
+      "response": {
+        "event": "receive-message",
+        "broadcast": true,
+        "data": {
+          "status": "john-doe",
+          "message": "Hello everyone!",
+          "timeStamp": "2024-05-24T10:30:00Z"
+        }
+      },
+      "error": {
+        "event": "message-error",
+        "data": {
+          "satus": "fail",
+          "message": "Please provide a room Id and message!"
+        }
+      }
+    },
+    {
+      "name": "send-reaction",
+      "description": "Send an emoji reaction to a message",
+      "emit": true,
+      "payload": {
+        "roomName": "room-name",
+        "emoji": "👍",
+        "username": "john-doe"
+      },
+      "response": {
+        "event": "receive-reaction",
+        "broadcast": true,
+        "data": {
+          "username": "john-doe",
+          "emoji": "👍",
+          "timestamp": "2024-05-24T10:30:00Z"
+        }
+      },
+      "error": {
+        "event": "reaction-error",
+        "data": {
+          "satus": "fail",
+          "message": "Please provide a room name, reaction and username!"
+        }
+      }
+    },
+    {
+      "name": "leave-room",
+      "description": "Leave a room",
+      "emit": true,
+      "payload": {
+        "roomName": "room-name",
+        "username": "john-doe"
+      },
+      "response": {
+        "event": "user-left",
+        "broadcast": true,
+        "data": {
+          "username": "john-doe",
+          "activeUsers": 1,
+          "message": "john-doe left the room"
+        }
+      },
+      "error": {
+        "event": "reaction-error",
+        "data": {
+          "satus": "fail",
+          "message": "Please provide a room name and username!"
+        }
+      }
+    },
+    {
+      "name": "disconnect",
+      "description": "User disconnects from the server",
+      "emit": false,
+      "automatic": true,
+      "response": {
+        "event": "user-left",
+        "broadcast": true,
+        "data": {
+          "username": "john-doe",
+          "activeUsers": 0,
+          "message": "john-doe left the room"
+        }
+      }
+    }
+  ],
+  "testData": {
+    "create-room": {
+      "name": "general"
+    },
+    "join-room": {
+      "roomName": "general",
+      "username": "alice"
+    },
+    "get-message-history": {
+      "roomId": "550e8400-e29b-41d4-a716-446655440000"
+    },
+    "send-message": {
+      "roomId": "550e8400-e29b-41d4-a716-446655440000",
+      "username": "alice",
+      "text": "Hello, how is everyone?"
+    },
+    "send-reaction": {
+      "roomName": "general",
+      "emoji": "❤️",
+      "username": "alice"
+    },
+    "leave-room": {
+      "roomName": "general",
+      "username": "alice"
+    }
+  }
+}
