@@ -23,12 +23,12 @@ export const setupSocketHandlers = (io: Server) => {
             const room = await prisma.room.create({
                 data: {
                     name: name,
-                }
+                },
             });
 
             socket.emit('room-created', {
                 message: "Room created succesfully",
-                ...room
+                ...room,
             });
         });
 
@@ -51,7 +51,7 @@ export const setupSocketHandlers = (io: Server) => {
                 select: {
                     id: true,
                     name: true,
-                }
+                },
             });
 
             if(!userRoom) {
@@ -218,4 +218,4 @@ export const setupSocketHandlers = (io: Server) => {
                 });
         });
     });
-}
+};
