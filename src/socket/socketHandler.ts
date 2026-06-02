@@ -207,7 +207,7 @@ export const setupSocketHandlers = (io: Server) => {
                     await prisma.room.delete({
                         where: {
                             name: roomName,
-                        }
+                        },
                     });
                 };
 
